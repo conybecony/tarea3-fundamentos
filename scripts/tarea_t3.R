@@ -1,0 +1,124 @@
+
+# Constanza Pinilla
+# Octubre 2026
+# consiste en dos partes, A Y B, 
+
+# cargar paquetes
+library(dplyr)
+library(broom)
+library(modelsummary)
+
+## Parte A — CASEN (45 puntos)
+### A1. Dos modelos
+casen <- read.csv("data/raw/casen_reducido.csv") |>
+  mutate(experiencia = pmax(edad - educ - 6, 0))
+
+m1 <- lm(ingreso ~ educ, data = casen)
+m2 <- lm(ingreso ~ educ + experiencia + genero, data = casen)
+
+### A2. La tabla de coeficientes, con `broom` + `dplyr`
+tidy(m2, conf.int = TRUE) |> 
+  filter(term != "(Intercept)") |>
+  mutate(estimate = round((estimate), 3),
+         conf.low = round(conf.low, 3),
+         conf.high = round(conf.high, 3),
+         p.value    = round(p.value, 3),
+         significativo = p.value < 0.05) |>
+  select(term, estimate, p.value, significativo, conf.low, conf.high) |> 
+  arrange(p.value)
+
+### A3. Comparar modelos
+m3 <- lm(ingreso ~ educ * genero, data = casen) 
+
+modelos <- list(simple = m1, controles = m2, mio = m3)
+lapply(modelos, glance) |> bind_rows(.id = "modelo")  
+
+# Mi modelo explica un poco más la variación del ingreso, ya que el R² aumenta de 0.458 a 0.478.
+# Sin embargo, el R² ajustado se mantiene en 0.448, por lo que la mejora del modelo es mínima.
+
+### A4. ¿Cambió el coeficiente de educación?
+bind_rows(simple    = tidy(modelos$simple),
+          controles = tidy(modelos$controles),
+          mio       = tidy(modelos$mio), .id = "modelo") |>
+  filter(term == "educ") |>
+  select(modelo, estimate, std.error, p.value)
+
+# El coeficiente de educación cambia poco entre m1 y m2, porque el control
+# agregado no modifica mucho la relación entre educación e ingreso.
+# En m3, el coeficiente aumenta porque se incorpora la interacción entre educación
+# con género, siendo que para que un control mueve un coeficiente solo si se relaciona A LA VEZ con la
+# educación y con el ingreso.
+
+### A5. Diagnóstico
+# 1
+augment(m3) |>
+  select(ingreso, educ, genero, .fitted, .resid) |>
+  mutate(across(c(.fitted, .resid), round)) |>
+  arrange(desc(abs(.resid))) |>
+  head(3)
+# Las tres personas tienen ingresos reales menores a los predichos por el
+# modelo, por lo que presentan residuos negativos de gran magnitud.
+# Esto indica que el modelo sobreestima sus ingresos.
+
+#2
+augment(m2) |>
+  summarise(
+    cook_max = max(.cooksd, na.rm = TRUE),
+    hat_max = max(.hat, na.rm = TRUE))
+
+augment(m2) |>
+  slice_max(.cooksd, n = 3) |> 
+  select(.rownames, ingreso, educ, genero, .cooksd)  
+
+augment(m2) |>
+  slice_max(.hat, n = 3) |> 
+  select(.rownames, ingreso, educ, genero, .hat)   
+
+#3
+m2_sin <- casen |>
+  filter(row_number() != 43 ) |> 
+  lm(ingreso ~ educ + experiencia + genero, data = _)
+
+bind_rows(todos = tidy(m2), sin_43 = tidy(m2_sin), .id = "muestra") |> 
+  filter(term == "educ") |>
+  select(muestra, estimate, std.error, p.value)
+# sin la observación de mayor distancia de Cook, el coeficiente de educación
+# aumenta en 2.972. Esto indica que, sin esa observación, la relación estimada
+# entre educación e ingreso es mayor.
+
+### A6. Interpretación de la Parte A
+# En el modelo con controles, cada año adicional de educación se asocia con
+# $42246 más de ingreso mensual, en promedio, manteniendo experiencia y
+# género constantes (IC 95 %: $29487 a $55004).
+
+# El coeficiente de `generoM` es $55686. Esto significa que los hombres tienen
+# un ingreso mensual estimado $55.686 mayor que la categoría base que es femenino,
+# manteniendo las demás variables constantes. Sin embargo, esta diferencia
+# no es estadísticamente significativa.
+
+# El coeficiente de generoM es grande, pero no significativo.
+# El género presenta una diferencia estimada de $55.686 mensuales, lo que
+# podría ser relevante. Sin embargo, como el coeficiente no
+# es estadísticamente significativo, no podemos asegurar que exista una
+# diferencia real de ingresos entre los géneros en la población.
+# Como la muestra es pequeña (n = 55), puede que no haya suficientes
+# observaciones para detectar con claridad la diferencia de ingresos
+# según género. Por eso, aunque el coeficiente es grande, no es
+# estadísticamente significativo y no podemos asegurar que exista una
+# diferencia real en los ingresos entre hombres y la categoría de referencia.
+ 
+## Parte B — ENE: ¿En qué sector económico las personas mayores de 30 años 
+# tienen el mayor ingreso promedio?
+
+### B1. Declara tu pregunta
+# ¿Existen diferencias en la tasa de desocupación según el grupo etario de las 
+# personas en Chile durante el trimestre móvil mayo-julio de 2026?
+
+### B2. Prepara la base
+ene <-  read.csv2("data/raw/ene-2026-06-mjj.csv")
+ene_prosesada <- read.csv2("data/processed/ene_a3.csv.csv")
+
+### B3. Al menos dos modelos
+m1_ene <- lm (ingreso ~ sector, data = ene)
+  
+m2_ene <- lm (ingreso ~ sector, educ, tramo_edad, data = ene, weights = fact_cal)
