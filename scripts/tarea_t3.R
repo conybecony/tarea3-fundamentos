@@ -107,18 +107,79 @@ bind_rows(todos = tidy(m2), sin_43 = tidy(m2_sin), .id = "muestra") |>
 # estadísticamente significativo y no podemos asegurar que exista una
 # diferencia real en los ingresos entre hombres y la categoría de referencia.
  
-## Parte B — ENE: ¿En qué sector económico las personas mayores de 30 años 
-# tienen el mayor ingreso promedio?
+## Parte B — ENE:¿Existen diferencias en la tasa de desocupación según el grupo etario de las 
+# personas en Chile durante el trimestre móvil mayo-julio de 2026?
 
 ### B1. Declara tu pregunta
-# ¿Existen diferencias en la tasa de desocupación según el grupo etario de las 
+# ¿Existen diferencias en la tasa de desocupación según el grupo etario y genero de las 
 # personas en Chile durante el trimestre móvil mayo-julio de 2026?
 
 ### B2. Prepara la base
 ene <-  read.csv2("data/raw/ene-2026-06-mjj.csv")
-ene_prosesada <- read.csv2("data/processed/ene_a3.csv.csv")
+ene_procesada <- read.csv("data/processed/ene_a3.csv")
 
 ### B3. Al menos dos modelos
-m1_ene <- lm (ingreso ~ sector, data = ene)
+desocupacion_edad <- select(ene, edad, activ, sexo, starts_with("fact"))
+
+desocupacion <- desocupacion_edad |>
+  mutate(
+    sexo = case_when(
+      sexo == 1 ~ "Hombre",
+      sexo == 2 ~ "Mujer"
+    ),
+    grupo_edad = case_when(
+      edad >= 15 & edad <= 24 ~ "15-24 años",
+      edad >= 25 & edad <= 34 ~ "25-34 años",
+      edad >= 35 & edad <= 44 ~ "35-44 años",
+      edad >= 45 & edad <= 54 ~ "45-54 años",
+      TRUE                    ~ "55 años o más"
+    ),
+    situacion = case_when(
+      activ == 1 ~ "Ocupado",
+      activ == 2 ~ "Desocupado",
+      activ == 3 ~ "Inactivo",
+      TRUE       ~ "Fuera de edad de trabajar"  
+    ))
+
+desocupacion|>
+  filter(!is.na(grupo_edad), !is.na(activ), !is.na(fact_cal), !is.na(sexo)) |>
+  group_by(grupo_edad, sexo) |>
+  summarise(
+    N = n(),
+    desocupados = sum(fact_cal[activ == 2]),
+    fuerza_trabajo = sum(fact_cal[activ %in% c(1, 2)]),
+    tasa_desocupacion = desocupados / fuerza_trabajo * 100 
+  )|> 
+  arrange(desc(desocupados))
+
+dir.create("data/processed", showWarnings = FALSE)
+write.csv(desocupacion_edad, "data/processed/ene_a3.csv", row.names = FALSE)
+file.exists("data/processed/ene_a3.csv")
+
+ene_procesada <- read.csv("data/processed/ene_a3.csv")
+names(ene_prosesada)
+
+m1_ene <- lm (activ ~ edad, data = ene_procesada, weights = fact_cal)
   
-m2_ene <- lm (ingreso ~ sector, educ, tramo_edad, data = ene, weights = fact_cal)
+m2_ene <- lm (activ ~ edad, sexo, data = ene_procesada, weights = fact_cal)
+
+### B4. Extrae y compara con `broom` + `dplyr`
+modelos <- list(simple = m1_ene, controles = m2_ene)
+
+# 1
+bind_rows(simple    = tidy(modelos$simple),
+          controles = tidy(modelos$controles), .id = "modelos") |>
+  filter(term == "edad") |>
+  select(modelos, term, estimate, std.error, p.value)
+#2
+glance(m1_ene) |> select(r.squared, adj.r.squared, sigma, AIC, nobs)
+glance(m2_ene) |> select(r.squared, adj.r.squared, sigma, AIC, nobs)
+
+#3
+
+
+### B5. Sensibilidad
+
+
+
+
