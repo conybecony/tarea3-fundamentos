@@ -1,7 +1,13 @@
 
 # Constanza Pinilla
 # Octubre 2026
-# consiste en dos partes, A Y B, 
+# consiste en dos partes, A Y B, en la parte A se analizan modelos en donde si 
+# el ingreso se asocia con la educación más otras variables y en la parte B es 
+# responder la pregunta ¿Existen diferencias en la tasa de desocupación según la 
+# edad y genero de las personas en Chile durante el trimestre móvil mayo-julio de 
+# 2026? donde se analiza si la desocupación en Chile durante mayo-julio de 2026
+# se relaciona con la edad y el género, considerando controles y comparando 
+# distintas especificaciones del modelo. 
 
 # cargar paquetes
 library(dplyr)
@@ -107,11 +113,11 @@ bind_rows(todos = tidy(m2), sin_43 = tidy(m2_sin), .id = "muestra") |>
 # estadísticamente significativo y no podemos asegurar que exista una
 # diferencia real en los ingresos entre hombres y la categoría de referencia.
  
-## Parte B — ENE:¿Existen diferencias en la tasa de desocupación según el grupo etario de las 
+## Parte B — ENE:¿Existen diferencias en la tasa de desocupación según la edad de las 
 # personas en Chile durante el trimestre móvil mayo-julio de 2026?
 
 ### B1. Declara tu pregunta
-# ¿Existen diferencias en la tasa de desocupación según el grupo etario y genero de las 
+# ¿Existen diferencias en la tasa de desocupación según la edad y genero de las 
 # personas en Chile durante el trimestre móvil mayo-julio de 2026?
 
 ### B2. Prepara la base
