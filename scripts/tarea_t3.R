@@ -139,10 +139,12 @@ desocupacion <- desocupacion_edad |>
       activ == 2 ~ "Desocupado",
       activ == 3 ~ "Inactivo",
       TRUE       ~ "Fuera de edad de trabajar"  
-    ))
+    ),
+    desocupado = ifelse(activ == 2, 1, 0)
+  )
 
 desocupacion|>
-  filter(!is.na(grupo_edad), !is.na(activ), !is.na(fact_cal), !is.na(sexo)) |>
+  filter(!is.na(grupo_edad), !is.na(activ), !is.na(fact_cal), !is.na(sexo), !is.na(desocupado)) |>
   group_by(grupo_edad, sexo) |>
   summarise(
     N = n(),
@@ -153,33 +155,96 @@ desocupacion|>
   arrange(desc(desocupados))
 
 dir.create("data/processed", showWarnings = FALSE)
-write.csv(desocupacion_edad, "data/processed/ene_a3.csv", row.names = FALSE)
+write.csv(desocupacion, "data/processed/ene_a3.csv", row.names = FALSE)
 file.exists("data/processed/ene_a3.csv")
 
 ene_procesada <- read.csv("data/processed/ene_a3.csv")
-names(ene_prosesada)
+names(ene_procesada)
 
-m1_ene <- lm (activ ~ edad, data = ene_procesada, weights = fact_cal)
+ene_modelo <- ene_procesada |>
+  filter(
+    activ %in% c(1, 2)
+  ) |>
+  mutate(
+    desocupado = ifelse(activ == 2, 1, 0),
+    sexo = factor(sexo)
+  )
+
+m1_ene <- lm (desocupado ~ edad, data = ene_modelo, weights = fact_cal)
   
-m2_ene <- lm (activ ~ edad, sexo, data = ene_procesada, weights = fact_cal)
+m2_ene <- lm (desocupado ~ edad + sexo, data = ene_modelo, weights = fact_cal)
 
 ### B4. Extrae y compara con `broom` + `dplyr`
-modelos <- list(simple = m1_ene, controles = m2_ene)
+modelos <- list(simple = m1_ene, controles = m2_ene, nuevo = m3_ene)
 
 # 1
 bind_rows(simple    = tidy(modelos$simple),
           controles = tidy(modelos$controles), .id = "modelos") |>
   filter(term == "edad") |>
   select(modelos, term, estimate, std.error, p.value)
+
 #2
 glance(m1_ene) |> select(r.squared, adj.r.squared, sigma, AIC, nobs)
 glance(m2_ene) |> select(r.squared, adj.r.squared, sigma, AIC, nobs)
 
 #3
+m3_ene <- lm(desocupado ~ edad * sexo, data = ene_modelo, weights = fact_cal)
+
+bind_rows(simple    = tidy(modelos$simple),
+          controles = tidy(modelos$controles),
+          nuevo     = tidy(modelos$nuevo), .id = "modelos") |>
+  filter(term == "edad") |>
+  select(modelos, term, estimate, std.error, p.value)
+
+lapply(modelos, glance) |>
+  bind_rows(.id = "modelos") |>
+  select(modelos, r.squared, adj.r.squared, sigma, AIC, nobs)
 
 
 ### B5. Sensibilidad
 
+# sin ponderar
+ene_sin_ponderar <- lm(
+  desocupado ~ edad + sexo,
+  data = ene_modelo
+)
+
+# con ponderación
+ene_con_ponderar <- lm(
+  desocupado ~ edad + sexo,
+  data = ene_modelo,
+  weights = fact_cal
+)
+# Al comparar el modelo con y sin ponderación, el coeficiente de la edad pasó
+# de 0.00272 a -0,002684, una variación de 0,000036. Esto significa que la 
+# asociación entre edad y desocupación se mantiene negativa, pero se vuelve 
+# un poco más cercana a cero al utilizar los factores de expansión. En ambos 
+# modelos, un año adicional de edad se asocia con una disminución de aproximadamente 
+# 0,27% en la probabilidad estimada de desocupación, manteniendo constante
+# el sexo. Por lo tanto, la decisión de ponderar modifica muy poco el 
+# resultado principal.
 
 
+### B6. Interpretación de la Parte B
+# El modelo simple analiza la asociación entre edad y desocupación, el segundo controla por sexo.
+# El modelo nuevo agrega la interacción educ * sexo para evaluar diferencias según el sexo.
+# El coeficiente de edad pasa de -0,00270 a -0,00268 y luego a -0,00252.
+# Esto equivale a disminuciones de 0,270, 0,268 y 0,252 puntos porcentuales por año.
+# La asociación se mantiene negativa y cambia poco al agregar controles.
+# Aunque es estadísticamente significativa, la magnitud del efecto de la edad es pequeña.
+# El R² aumenta de 0,0153 a 0,0157, por lo que los modelos explican poco de las diferencias.
+# Una limitación es que lm() con ponderaciones no considera el diseño muestral de la ENE.
+# Otra limitación es que pueden faltar variables relevantes, como experiencia laboral.
+# Por ello, los resultados muestran asociaciones, pero no permiten afirmar causalidad.
+
+## Parte C — Comunicar
+# 1
+modelsummary(list(simple = m1_ene, controles = m2_ene, nuevo = m3_ene),
+             stars   = TRUE,
+             gof_map = c("nobs", "r.squared"))
+# 2
+dir.create("data/processed", showWarnings = FALSE)
+modelsummary(modelos, output = "data/processed/t3_tabla_ene.csv")
+tidy(m2_ene, conf.int = TRUE) |>
+  write.csv("data/processed/t3_coeficientes_casen.csv", row.names = FALSE)
 

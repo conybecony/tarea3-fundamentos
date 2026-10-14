@@ -7,6 +7,9 @@
   base que limpiaste en la A3. Se evalúa tu juicio: qué modelo, qué controles,
   cómo se lee y qué **no** se puede concluir.
 
+Pregunta parte B: ¿Existen diferencias en la tasa de desocupación según el grupo etario y genero de las 
+personas en Chile durante el trimestre móvil mayo-julio de 2026?
+Respuesta: 
 
 ## Datos
 
@@ -28,7 +31,12 @@ Abrir `tarea3-fundamentos.Rproj` y ejecutar `scripts/tarea_t3.R`.
    ├── scripts/
    └── README.md
 ```
-
 ## Autor
 
 Constanza Pinilla — Octubre 2026
+
+## Declaración de autoría y uso de IA
+- Herramienta utilizada: ____ (o «ninguna»)
+- Para qué la usé: ____ (ej.: entender por qué un coeficiente salía NA)
+- Qué hice yo: ____ (ej.: elegí la pregunta, los controles y escribí la interpretación)
+- Verificación: confirmo que entiendo y puedo explicar todo lo que entrego.
