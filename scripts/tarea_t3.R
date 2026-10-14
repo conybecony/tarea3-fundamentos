@@ -181,11 +181,11 @@ m1_ene <- lm (desocupado ~ edad, data = ene_modelo, weights = fact_cal)
 m2_ene <- lm (desocupado ~ edad + sexo, data = ene_modelo, weights = fact_cal)
 
 ### B4. Extrae y compara con `broom` + `dplyr`
-modelos <- list(simple = m1_ene, controles = m2_ene, nuevo = m3_ene)
+modelos_1_2 <- list(simple = m1_ene, controles = m2_ene)
 
 # 1
-bind_rows(simple    = tidy(modelos$simple),
-          controles = tidy(modelos$controles), .id = "modelos") |>
+bind_rows(simple    = tidy(modelos_1_2$simple),
+          controles = tidy(modelos_1_2$controles), .id = "modelos") |>
   filter(term == "edad") |>
   select(modelos, term, estimate, std.error, p.value)
 
@@ -195,10 +195,11 @@ glance(m2_ene) |> select(r.squared, adj.r.squared, sigma, AIC, nobs)
 
 #3
 m3_ene <- lm(desocupado ~ edad * sexo, data = ene_modelo, weights = fact_cal)
+modelos_1_2_3 <- list(simple = m1_ene, controles = m2_ene, nuevo = m3_ene)
 
-bind_rows(simple    = tidy(modelos$simple),
-          controles = tidy(modelos$controles),
-          nuevo     = tidy(modelos$nuevo), .id = "modelos") |>
+bind_rows(simple    = tidy(modelos_1_2_3$simple),
+          controles = tidy(modelos_1_2_3$controles),
+          nuevo     = tidy(modelos_1_2_3$nuevo), .id = "modelos") |>
   filter(term == "edad") |>
   select(modelos, term, estimate, std.error, p.value)
 
